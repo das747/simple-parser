@@ -17,5 +17,5 @@ fun main(args: Array<String>) {
     println("Parsed:")
     println(builder.toString())
     println("Unused assignments:")
-    Analyser().findUnusedAssignments(prog).forEach{ println(it) }
+    Analyser().findUnusedAssignments(prog).forEach{ assign -> StringBuilder().also { assign.print(it); print(it) } }
 }

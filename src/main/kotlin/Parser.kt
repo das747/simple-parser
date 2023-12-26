@@ -1,13 +1,15 @@
 typealias Parsed<T> = Result<Pair<T, Int>>
 
-class Parser(private val tokens: List<String>) {
+class Parser(private val text: String) {
 
     private fun matchToken(token: String, pos: Int): Parsed<String> {
-        if (pos >= tokens.size || !Regex(token).matches(tokens[pos])) {
+        if (pos >= text.length) {
             return Result.failure(Error(""))
         }
 
-        return Result.success(tokens[pos] to pos + 1)
+        return Regex("\\s*($token)").matchAt(text, pos)?.let{
+            Result.success(it.groupValues[1] to pos + it.groupValues[0].length)
+        } ?: Result.failure(Error())
     }
 
     private fun <T> parseAtom(regex: String, constructor: (String) -> T, pos: Int): Parsed<T> =
@@ -38,7 +40,7 @@ class Parser(private val tokens: List<String>) {
             }
         }.flatRecover { parseVariable(pos) }.flatRecover { parseConstant(pos) }
 
-    private fun parseExpression(pos: Int, priority: Int): Parsed<Expression> {
+    private fun parseExpression(pos: Int, priority: Int = maxPriority): Parsed<Expression> {
         if (priority < 0) return parseAtomicExpression(pos)
         val left = parseExpression(pos, priority - 1)
         return left.flatMap { (left, pos) ->
@@ -49,7 +51,7 @@ class Parser(private val tokens: List<String>) {
             }
         }.flatRecover { left }
     }
-    private fun parseExpression(pos: Int): Parsed<Expression> = parseExpression(pos, maxPriority)
+
 
     private fun <T: Statement> parseControlStatement(name: String, constructor: (Expression, StatementList) -> T, pos: Int) =
         matchToken(name, pos).flatMap { (_, pos) ->

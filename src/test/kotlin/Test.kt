@@ -17,6 +17,15 @@ class Test {
             assertEquals(sol.toSet(), Analyser().findUnusedAssignments(prog))
         }
     }
+
+    @Test
+    fun testComplex() {
+        assertDoesNotThrow {
+            val prog = parseFile("$prefix/complex.txt")
+            val sol = parseFile("$prefix/complex.sol")
+            assertEquals(sol.toSet(), Analyser().findUnusedAssignments(prog))
+        }
+    }
 }
 
 fun Program.toSet(): Set<Statement> {

@@ -1,0 +1,18 @@
+a = 1
+b = a
+x = 3
+y = 4
+
+while (b < 5)
+  z = x
+  b = b + 1
+  while (c > 1)
+    v = g + 1
+    g = 9
+  end
+  x = 9
+  if d < 17
+    a = (d + 1) * 7 - 42 * h
+  end
+  y = 10
+end

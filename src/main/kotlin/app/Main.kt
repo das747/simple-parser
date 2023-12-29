@@ -22,8 +22,9 @@ fun main(args: Array<String>) {
         println("Parsed:")
         println(StringBuilder().also { prog.print(it) }.toString())
         println("Unused assignments:")
-        Analyser().findUnusedAssignments(prog).forEach{ assign -> StringBuilder().also { assign.print(it); print(it) } }
-    } catch(e: Exception) {
+        Analyser().findUnusedAssignments(prog)
+            .forEach { assign -> StringBuilder().also { assign.print(it); print(it) } }
+    } catch (e: Exception) {
         println("Error: ${e.message}")
     }
 

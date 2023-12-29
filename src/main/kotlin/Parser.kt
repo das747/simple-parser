@@ -6,28 +6,35 @@ open class Parser(private val text: String) {
             return Result.failure(Error(""))
         }
 
-        return Regex("\\s*($token)").matchAt(text, pos)?.let{
+        return Regex("\\s*($token)").matchAt(text, pos)?.let {
             Result.success(it.groupValues[1] to pos + it.groupValues[0].length)
         } ?: Result.failure(Error())
     }
-    
+
     protected fun <T> parseAtom(regex: String, constructor: (String) -> T, pos: Int): Parsed<T> =
-        matchToken(regex, pos).map { (match, pos) -> constructor(match) to pos}
+        matchToken(regex, pos).map { (match, pos) -> constructor(match) to pos }
 
     protected fun parseVariable(pos: Int): Parsed<Variable> = parseAtom("[a-z]", ::Variable, pos)
 
     private fun parseExpression(pos: Int): Parsed<Expression> =
-        matchToken("(\\s*([a-z]|[0-9]+|\\(.*\\))\\s*[+\\-*/<>])*\\s*([a-z]|[0-9]+|\\(.*\\))", pos).flatMap {(expr, pos) ->
-            ExpressionParser(expr.reversed()).parseExpression().map {(expr, _) ->
+        matchToken(
+            "(\\s*([a-z]|[0-9]+|\\(.*\\))\\s*[+\\-*/<>])*\\s*([a-z]|[0-9]+|\\(.*\\))",
+            pos
+        ).flatMap { (expr, pos) ->
+            ExpressionParser(expr.reversed()).parseExpression().map { (expr, _) ->
                 expr to pos
             }
         }
-    
-    private fun <T: Statement> parseControlStatement(name: String, constructor: (Expression, StatementList) -> T, pos: Int) =
+
+    private fun <T : Statement> parseControlStatement(
+        name: String,
+        constructor: (Expression, StatementList) -> T,
+        pos: Int
+    ) =
         matchToken(name, pos).flatMap { (_, pos) ->
             parseExpression(pos).flatMap { (cond, pos) ->
-                parseStatementList(pos).flatMap {(body, pos) ->
-                    matchToken("end", pos).map {(_, pos) ->
+                parseStatementList(pos).flatMap { (body, pos) ->
+                    matchToken("end", pos).map { (_, pos) ->
                         constructor(cond, body) to pos
                     }
                 }
@@ -35,9 +42,9 @@ open class Parser(private val text: String) {
         }
 
     private fun parseStatement(pos: Int): Parsed<Statement> =
-        parseVariable(pos).flatMap {(v, pos) ->
+        parseVariable(pos).flatMap { (v, pos) ->
             matchToken("=", pos).flatMap { (_, pos) ->
-                parseExpression(pos).map {(exp, pos) ->
+                parseExpression(pos).map { (exp, pos) ->
                     Assignment(v, exp) to pos
                 }
             }
@@ -49,18 +56,18 @@ open class Parser(private val text: String) {
 
     private fun parseStatementList(pos: Int): Parsed<StatementList> {
         val statement = parseStatement(pos)
-            return statement.flatMap { (st, pos) ->
-                parseStatementList(pos).map { (tail, pos) ->
-                    NonEmptyStatementList(st, tail) to pos
-                }
-            }.flatRecover { statement }
+        return statement.flatMap { (st, pos) ->
+            parseStatementList(pos).map { (tail, pos) ->
+                NonEmptyStatementList(st, tail) to pos
+            }
+        }.flatRecover { statement }
     }
 
-    fun parseProgram(): Result<Program>  = parseStatementList(0).map { (res, _) -> res }
+    fun parseProgram(): Result<Program> = parseStatementList(0).map { (res, _) -> res }
 
 }
 
-class ExpressionParser(text: String): Parser(text) {
+class ExpressionParser(text: String) : Parser(text) {
 
     private val operatorPriorities = listOf(
         "[*/]",
@@ -74,7 +81,7 @@ class ExpressionParser(text: String): Parser(text) {
         }
         return parseAtom(operatorPriorities[priority], ::Operator, pos)
     }
-    
+
     private fun parseConstant(pos: Int): Parsed<Constant> =
         parseAtom("[0-9]+", ::Constant, pos).map { (const, pos) ->
             Constant(const.value.reversed()) to pos
@@ -101,7 +108,7 @@ class ExpressionParser(text: String): Parser(text) {
         }.flatRecover { left }
     }
 }
-        
+
 
 fun <T, R> Result<T>.flatMap(transform: (T) -> Result<R>): Result<R> {
     if (this.isSuccess) {

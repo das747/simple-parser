@@ -10,7 +10,6 @@ fun parseFile(fileName: String): Program {
     return Parser(text).parseProgram().getOrThrow()
 }
 
-
 fun main(args: Array<String>) {
     if (args.isEmpty()) {
         println("File name expected!")

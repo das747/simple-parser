@@ -9,7 +9,11 @@ fun Operator.print(builder: StringBuilder) {
 sealed class Expression {
     fun print(builder: StringBuilder) {
         when(this) {
-            is Operation -> left.print(builder).also{ operator.print(builder) }.also{ right.print(builder)}
+            is Operation -> {
+                builder.append('(')
+                left.print(builder).also{ operator.print(builder) }.also{ right.print(builder) }
+                builder.append(")")
+            }
             else -> builder.append(toString())
         }
     }

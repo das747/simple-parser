@@ -1,8 +1,7 @@
 typealias Parsed<T> = Result<Pair<T, Int>>
 
-class Parser(private val text: String) {
-
-    private fun matchToken(token: String, pos: Int): Parsed<String> {
+open class Parser(private val text: String) {
+    protected fun matchToken(token: String, pos: Int): Parsed<String> {
         if (pos >= text.length) {
             return Result.failure(Error(""))
         }
@@ -11,48 +10,19 @@ class Parser(private val text: String) {
             Result.success(it.groupValues[1] to pos + it.groupValues[0].length)
         } ?: Result.failure(Error())
     }
-
-    private fun <T> parseAtom(regex: String, constructor: (String) -> T, pos: Int): Parsed<T> =
+    
+    protected fun <T> parseAtom(regex: String, constructor: (String) -> T, pos: Int): Parsed<T> =
         matchToken(regex, pos).map { (match, pos) -> constructor(match) to pos}
 
-    private val operatorPriorities = listOf(
-        "[*/]",
-        "[+\\-]",
-        "[><]"
-    )
-    private val maxPriority = 2
-    private fun parseOperator(pos: Int, priority: Int): Parsed<Operator> {
-        if (priority < 0 || priority > maxPriority) {
-            return Result.failure(Error("priority ot of bounds"))
+    protected fun parseVariable(pos: Int): Parsed<Variable> = parseAtom("[a-z]", ::Variable, pos)
+
+    private fun parseExpression(pos: Int): Parsed<Expression> =
+        matchToken("(\\s*([a-z]|[0-9]+|\\(.*\\))\\s*[+\\-*/<>])*\\s*([a-z]|[0-9]+|\\(.*\\))", pos).flatMap {(expr, pos) ->
+            ExpressionParser(expr.reversed()).parseExpression().map {(expr, _) ->
+                expr to pos
+            }
         }
-        return parseAtom(operatorPriorities[priority], ::Operator, pos)
-    }
-
-    private fun parseVariable(pos: Int): Parsed<Variable> = parseAtom("[a-z]", ::Variable, pos)
-    private fun parseConstant(pos: Int): Parsed<Constant> = parseAtom("[0-9]+", ::Constant, pos)
-
-    private fun parseAtomicExpression(pos: Int): Parsed<Expression> =
-        matchToken("\\(", pos).flatMap { (_, pos) ->
-            parseExpression(pos).flatMap { (exp, pos) ->
-                matchToken("\\)", pos).map { (_, pos) ->
-                    exp to pos
-                }
-            }
-        }.flatRecover { parseVariable(pos) }.flatRecover { parseConstant(pos) }
-
-    private fun parseExpression(pos: Int, priority: Int = maxPriority): Parsed<Expression> {
-        if (priority < 0) return parseAtomicExpression(pos)
-        val left = parseExpression(pos, priority - 1)
-        return left.flatMap { (left, pos) ->
-            parseOperator(pos, priority).flatMap { (op, pos) ->
-                parseExpression(pos, priority - 1).map { (right, pos) ->
-                    Operation(left, op, right) to pos
-                }
-            }
-        }.flatRecover { left }
-    }
-
-
+    
     private fun <T: Statement> parseControlStatement(name: String, constructor: (Expression, StatementList) -> T, pos: Int) =
         matchToken(name, pos).flatMap { (_, pos) ->
             parseExpression(pos).flatMap { (cond, pos) ->
@@ -89,6 +59,49 @@ class Parser(private val text: String) {
     fun parseProgram(): Result<Program>  = parseStatementList(0).map { (res, _) -> res }
 
 }
+
+class ExpressionParser(text: String): Parser(text) {
+
+    private val operatorPriorities = listOf(
+        "[*/]",
+        "[+\\-]",
+        "[><]"
+    )
+    private val maxPriority = 2
+    private fun parseOperator(pos: Int, priority: Int): Parsed<Operator> {
+        if (priority < 0 || priority > maxPriority) {
+            return Result.failure(Error("priority ot of bounds"))
+        }
+        return parseAtom(operatorPriorities[priority], ::Operator, pos)
+    }
+    
+    private fun parseConstant(pos: Int): Parsed<Constant> =
+        parseAtom("[0-9]+", ::Constant, pos).map { (const, pos) ->
+            Constant(const.value.reversed()) to pos
+        }
+
+    private fun parseAtomicExpression(pos: Int): Parsed<Expression> =
+        matchToken("\\)", pos).flatMap { (_, pos) ->
+            parseExpression(pos).flatMap { (exp, pos) ->
+                matchToken("\\(", pos).map { (_, pos) ->
+                    exp to pos
+                }
+            }
+        }.flatRecover { parseVariable(pos) }.flatRecover { parseConstant(pos) }
+
+    fun parseExpression(pos: Int = 0, priority: Int = maxPriority): Parsed<Expression> {
+        if (priority < 0) return parseAtomicExpression(pos)
+        val left = parseExpression(pos, priority - 1)
+        return left.flatMap { (left, pos) ->
+            parseOperator(pos, priority).flatMap { (op, pos) ->
+                parseExpression(pos, priority).map { (right, pos) ->
+                    Operation(right, op, left) to pos
+                }
+            }
+        }.flatRecover { left }
+    }
+}
+        
 
 fun <T, R> Result<T>.flatMap(transform: (T) -> Result<R>): Result<R> {
     if (this.isSuccess) {

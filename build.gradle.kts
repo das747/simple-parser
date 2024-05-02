@@ -1,6 +1,5 @@
 plugins {
     kotlin("jvm") version "1.9.0"
-    application
 }
 
 group = "com.das747"
@@ -12,10 +11,6 @@ repositories {
 
 dependencies {
     testImplementation(kotlin("test"))
-}
-
-application {
-    mainClass.set("com.das747.MainKt")
 }
 
 tasks.test {
